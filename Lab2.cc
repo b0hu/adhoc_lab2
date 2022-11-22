@@ -25,7 +25,7 @@ int main (int argc, char *argv[])
         double rss = -80;  // -dBm
 
         std::string CBR_Rate_bps = "860kbps";	// [ 860 , 960 , 1060 , 1160 ]
-        uint32_t Queue_Size_Packet = 30;	// [ 20 , 30 , 40 , 50 ]
+        uint32_t Queue_Size_Packet = 50;	// [ 20 , 30 , 40 , 50 ]
 
         NodeContainer c;
         c.Create (2);
@@ -102,12 +102,23 @@ int main (int argc, char *argv[])
 	// Transmitter
 	for( int counter = 0 ; counter < 1 ; ++counter )
 	{
+		OnOffHelper onoff("ns3::UdpSocketFactory",InetSocketAddress(i.GetAddress(1,0),CBR_Port));
+		onoff.SetConstantRate(DataRate(CBR_Rate_bps),CBR_PacketSize_Byte);	
+
+		CBR_Tx_App.Add(onoff.Install(c.Get(0)));	
+		CBR_Tx_App.Start(Seconds(Traffic_StartTime_sec));
+		CBR_Tx_App.Stop(Seconds(Traffic_EndTime_sec));	
 		//set your transmitter(page 18 19)
 	}
 
 	// Receiver
 	for( int counter = 0 ; counter < 1 ; ++counter )
 	{
+		PacketSinkHelper sink("ns3::UdpSocketFactory",InetSocketAddress(i.GetAddress(1,0),CBR_Port));	
+	
+		CBR_Rx_App = sink.Install(c.Get(1));	
+		CBR_Rx_App.Start(Seconds(Traffic_StartTime_sec));
+		CBR_Rx_App.Stop(Seconds(TotalSimulationTime_sec));	
 		//set your receiver(page 20)
 	}
   
@@ -117,9 +128,12 @@ int main (int argc, char *argv[])
     // Show Statistics Information
 	double Avg_e2eDelaySec = 0.0;
 	int Total_RxByte = 0;
+	int Total_Tx_Packet = 0;	
+	int Total_Rx_Packet = 0;	
 	double Avg_PDR = 0.0;
-	int Avg_Base = 0;
+	//int Avg_Base = 0;
 
+	
 	std::cout << "Lab2 Simulation Start\n\n";
     std::cout << "[ CBR Rate : " << CBR_Rate_bps << " + " << "Queue Size : " << Queue_Size_Packet << " Byte ] \n";
 
@@ -135,13 +149,19 @@ int main (int argc, char *argv[])
 		{
 			if( ft.destinationPort == CBR_Port )
 			{
+				Avg_e2eDelaySec += counter->second.delaySum.GetSeconds() ;
+				
+				Total_RxByte += counter->second.rxBytes;
+				Total_Tx_Packet += counter->second.txPackets;	
+				Total_Rx_Packet +=counter->second.rxPackets;	
+				//Avg_Base += counter->second.txBytes;	
 				// insert your statistics calculation here(ppt page26)
 			}
 		}
 	}
 
 	//-------------------------------------------------------------------------------------------
-	//Avg_e2eDelaySec =	
+	Avg_e2eDelaySec /=double(Total_Rx_Packet);
 	std::cout << "Average System End-to-End Delay : ";
 	std::cout << Avg_e2eDelaySec << " [sec]\n";
 
@@ -149,7 +169,7 @@ int main (int argc, char *argv[])
 	std::cout << "Total Rx Byte : ";
 	std::cout << Total_RxByte << "\n";
 	
-	//Avg_PDR =
+	Avg_PDR = double(Total_Rx_Packet)/double(Total_Tx_Packet);
 	std::cout << "Average Packet Delivery Ratio : ";
 	std::cout << Avg_PDR << "\n";
 
